@@ -6,3 +6,6 @@ faiss-cpu
 python-dotenv
 openai
 tiktoken
+streamlit
+python-dotenv
+google-genai
