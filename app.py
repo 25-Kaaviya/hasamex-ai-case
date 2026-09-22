@@ -1,7 +1,7 @@
 import os
 import re
 from pathlib import Path
-
+import google.generativeai as genai
 import streamlit as st
 from dotenv import load_dotenv
 from google import genai
