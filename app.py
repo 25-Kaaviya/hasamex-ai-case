@@ -1,104 +1,97 @@
 import os
 import re
 from pathlib import Path
-import google.generativeai as genai
-import streamlit as st
-from dotenv import load_dotenv
-from google import genai
 
-# =========================
+import streamlit as st
+import google.generativeai as genai
+from dotenv import load_dotenv
+
+# -------------------------
 # CONFIG
-# =========================
+# -------------------------
 st.set_page_config(
     page_title="European Robotic Surgery Insights",
     page_icon="🤖",
     layout="wide"
 )
 
-# Change this to the model that appeared in check_models.py
-GEMINI_MODEL = "gemini-3.5-flash-lite"
+# Hide sidebar completely
+st.markdown("""
+<style>
+[data-testid="stSidebar"] {display:none;}
+[data-testid="collapsedControl"] {display:none;}
+.block-container {padding-top:2rem; max-width:1200px;}
+.stButton>button {width:100%; border-radius:10px; height:45px;}
+</style>
+""", unsafe_allow_html=True)
 
-# =========================
+# -------------------------
 # LOAD API KEY
-# =========================
+# -------------------------
 load_dotenv()
 
 API_KEY = os.getenv("GOOGLE_API_KEY")
 
 if not API_KEY:
-    st.error("GOOGLE_API_KEY not found in .env file.")
+    st.error("GOOGLE_API_KEY not found.")
     st.stop()
 
-client = genai.Client(api_key=API_KEY)
+genai.configure(api_key=API_KEY)
 
-# =========================
+# Render-friendly model
+GEMINI_MODEL = "gemini-1.5-flash"
+
+# -------------------------
 # LOAD TRANSCRIPTS
-# =========================
+# -------------------------
 TRANSCRIPT_FOLDER = Path("transcripts")
 
 def load_transcripts():
     data = {}
-
     if TRANSCRIPT_FOLDER.exists():
         for file in sorted(TRANSCRIPT_FOLDER.glob("*.txt")):
             data[file.stem] = file.read_text(encoding="utf-8")
-
     return data
 
 transcripts = load_transcripts()
 
-# =========================
-# EXTRACT TIMESTAMP QUOTES
-# =========================
+# -------------------------
+# QUOTE EXTRACTION
+# -------------------------
 timestamp_pattern = r"^\d{2}:\d{2}$"
 
 def extract_quotes(text):
-
     quotes = []
-    current_time = "Unknown"
+    current = "Unknown"
 
     for line in text.splitlines():
-
         line = line.strip()
 
         if re.match(timestamp_pattern, line):
-            current_time = line
-
+            current = line
         elif ":" in line and len(line) > 15:
-            quotes.append((current_time, line))
+            quotes.append((current, line))
 
     return quotes
 
-# =========================
+# -------------------------
 # GEMINI FUNCTION
-# =========================
+# -------------------------
 def ask_gemini(prompt):
-
     try:
-        response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt
-        )
+        model = genai.GenerativeModel(GEMINI_MODEL)
+        response = model.generate_content(prompt)
 
-        return response.text
+        if response.text:
+            return response.text
+        return "No response."
 
     except Exception as e:
-        return f"❌ Gemini Error:\n\n{e}"
+        return f"❌ Gemini Error: {e}"
 
-# =========================
-# SIDEBAR
-# =========================
-st.sidebar.title("📂 Loaded Transcripts")
-
-if transcripts:
-    for name in transcripts:
-        st.sidebar.success(name)
-else:
-    st.sidebar.error("No transcripts found.")
-
-# =========================
+# -------------------------
 # HEADER
-# =========================
+# -------------------------
 st.title("🤖 European Robotic Surgery Insights")
 st.caption("Hasamex AI Engineer Technical Case")
 
@@ -110,9 +103,9 @@ c3.metric("Interview Questions", "6")
 
 st.divider()
 
-# =========================
+# -------------------------
 # TABS
-# =========================
+# -------------------------
 tab1, tab2, tab3, tab4 = st.tabs([
     "Interview Guide",
     "Quotes",
@@ -146,21 +139,22 @@ You are analysing expert interview transcripts.
 Question:
 {selected}
 
-Instructions:
-- Answer separately for France, Germany and the UK.
+Answer separately for France, Germany and the UK.
+
+Requirements:
 - Use ONLY transcript evidence.
-- Include an exact supporting quote.
-- Include the timestamp.
-- Do not invent information.
+- Include an exact quote.
+- Include its timestamp.
+- Keep answers concise.
 
 France:
-{transcripts.get("Transcript_1_France", "")}
+{transcripts.get("Transcript_1_France","")}
 
 Germany:
-{transcripts.get("Transcript_2_Germany", "")}
+{transcripts.get("Transcript_2_Germany","")}
 
 UK:
-{transcripts.get("Transcript_3_UK", "")}
+{transcripts.get("Transcript_3_UK","")}
 """
 
         with st.spinner("Generating answer..."):
@@ -175,12 +169,10 @@ with tab2:
 
     for name, text in transcripts.items():
 
-        with st.expander(name):
+        with st.expander(name.replace("_"," ")):
 
-            quotes = extract_quotes(text)
-
-            for t, q in quotes:
-                st.markdown(f"**{t}**")
+            for t, q in extract_quotes(text):
+                st.markdown(f"**⏱ {t}**")
                 st.write(q)
 
 # =====================================================
@@ -199,24 +191,24 @@ Return:
 
 ## Common Themes
 
-- Bullet points
+- bullet points
 
 ## Disagreements
 
-- Bullet points
+- bullet points
 
 Mention which expert supports each point.
 
-Use only transcript evidence.
+Use ONLY transcript evidence.
 
 France:
-{transcripts.get("Transcript_1_France", "")}
+{transcripts.get("Transcript_1_France","")}
 
 Germany:
-{transcripts.get("Transcript_2_Germany", "")}
+{transcripts.get("Transcript_2_Germany","")}
 
 UK:
-{transcripts.get("Transcript_3_UK", "")}
+{transcripts.get("Transcript_3_UK","")}
 """
 
         with st.spinner("Comparing experts..."):
@@ -236,7 +228,7 @@ with tab4:
     if st.button("Ask") and question:
 
         prompt = f"""
-Answer the user's question using ONLY these transcripts.
+Answer ONLY from these transcripts.
 
 Question:
 {question}
@@ -248,20 +240,20 @@ Requirements:
 - Do not invent information.
 
 France:
-{transcripts.get("Transcript_1_France", "")}
+{transcripts.get("Transcript_1_France","")}
 
 Germany:
-{transcripts.get("Transcript_2_Germany", "")}
+{transcripts.get("Transcript_2_Germany","")}
 
 UK:
-{transcripts.get("Transcript_3_UK", "")}
+{transcripts.get("Transcript_3_UK","")}
 """
 
         with st.spinner("Searching transcripts..."):
             st.markdown(ask_gemini(prompt))
 
-# =========================
+# -------------------------
 # FOOTER
-# =========================
+# -------------------------
 st.divider()
-st.caption("Built with Streamlit + Gemini for the Hasamex AI Engineer Case Study.")
+st.caption("Built with Streamlit + Google Gemini for the Hasamex AI Engineer Technical Case.")
