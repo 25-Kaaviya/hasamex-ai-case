@@ -3,9 +3,8 @@ langchain
 langchain-community
 langchain-openai
 faiss-cpu
-python-dotenv
 openai
 tiktoken
 streamlit
 python-dotenv
-google-genai
+google-generativeai==0.8.5
