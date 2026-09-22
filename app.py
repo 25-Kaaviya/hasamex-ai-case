@@ -39,7 +39,7 @@ if not API_KEY:
 genai.configure(api_key=API_KEY)
 
 # Render-friendly model
-GEMINI_MODEL = "gemini-2.5-flash-lite"
+GEMINI_MODEL = "gemini-3.5-flash-lite"
 
 # -------------------------
 # LOAD TRANSCRIPTS
